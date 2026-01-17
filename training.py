@@ -6,11 +6,11 @@ import time
 from flight_controller import FlightComputer, RocketParams
 
 # -----------------------------
-# CONFIG GA / SIM
+# CONFIG Genetic Algorithm/Simulation
 # -----------------------------
 POPULATION_SIZE = 30
 GENERATIONS = 20
-ELITES = 6  # survivants/élites
+ELITES = 6  # survivants
 TOURNAMENT_K = 4
 
 SIM_DT = 1 / 240
@@ -26,26 +26,26 @@ TORQUE_LIMIT = 2.0e6      # saturation couples
 MAX_LANDING_SPEED = 8.0
 MAX_TILT = 0.5
 
-# NOUVEAU: anti-glissade (comme ton camarade)
+# Anti-glissade
 MAX_SLIDE_SPEED = 2.0          # m/s au contact
 SLIDE_PENALTY_GAIN = 400.0     # points par (m/s) au-dessus du seuil
 
 # -----------------------------
-# PARAMS OPTIMISÉS (LOG-SPACE)
+# Paramètres
 # genome = [log10_kp, log10_kd, pip_h, pip_l]
 # -----------------------------
 BOUNDS = {
-    "log_kp": [4.70, 5.85],    # ~ 50k -> 708k
-    "log_kd": [4.00, 5.18],    # ~ 10k -> 151k
+    "log_kp": [4.70, 5.85],
+    "log_kd": [4.00, 5.18],
     "pip_h":  [0.001, 0.1],
     "pip_l":  [0.005, 0.2],
 }
 
-# Mutation (additive)
+# Mutation
 MUT_RATE = 0.35
-SIGMA_LOG_KP = 0.08   # ~ multiplicatif moyen 10^0.08 ~ x1.20
+SIGMA_LOG_KP = 0.08
 SIGMA_LOG_KD = 0.10
-SIGMA_PIP = 0.06      # variation relative pour pip_*
+SIGMA_PIP = 0.06
 
 
 def clamp(x, lo, hi):
@@ -53,7 +53,6 @@ def clamp(x, lo, hi):
 
 
 def decode_genome(genome):
-    """Convertit genome log-space -> paramètres réels pour FlightComputer."""
     log_kp, log_kd, pip_h, pip_l = genome
     kp = 10 ** log_kp
     kd = 10 ** log_kd
@@ -98,7 +97,6 @@ def get_fitness_from_real_params(params, physics_client, difficulty_radius, seed
     crashed = False
     fail_reason = ""
 
-    # NEW: pour score glissade même après break
     v_horiz_contact = 0.0
     v_impact_contact = 0.0
     tilt_contact = 0.0
@@ -129,7 +127,7 @@ def get_fitness_from_real_params(params, physics_client, difficulty_radius, seed
                 crashed = True
                 fail_reason = f"VITESSE EXCESSIVE ({v_impact:.1f} m/s)"
 
-            # 3) NOUVEAU: glissade horizontale
+            # 3) Glissade horizontale
             elif v_horiz > MAX_SLIDE_SPEED:
                 crashed = True
                 fail_reason = f"GLISSADE ({v_horiz:.1f} m/s)"
@@ -184,7 +182,7 @@ def get_fitness_from_real_params(params, physics_client, difficulty_radius, seed
     progress = max(0.0, start_dist - dist_center)
     score += progress * 10.0
 
-    # petit malus doux si fin d'épisode avec vitesse horizontale (aide convergence)
+    # Malus
     score -= 2.0 * v_horiz_final
 
     if crashed:
@@ -196,7 +194,7 @@ def get_fitness_from_real_params(params, physics_client, difficulty_radius, seed
         if fail_reason == "TROP PENCHÉ":
             score -= tilt_final * 500.0
 
-        # NOUVEAU: malus glissade (basé sur la vitesse au contact si disponible)
+        # Malus glissade
         if fail_reason.startswith("GLISSADE"):
             vref = v_horiz_contact if v_horiz_contact > 0 else v_horiz_final
             score -= max(0.0, (vref - MAX_SLIDE_SPEED)) * SLIDE_PENALTY_GAIN
@@ -212,7 +210,7 @@ def get_fitness_from_real_params(params, physics_client, difficulty_radius, seed
         score += softness * 4000.0
         score += fuel_pct * 5000.0
 
-        # BONUS: landing propre -> bonus si quasi pas de glissade
+        # Landing propre -> bonus si quasi pas de glissade
         score += max(0.0, (MAX_SLIDE_SPEED - v_horiz_final)) * 300.0
 
     else:

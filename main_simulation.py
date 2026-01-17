@@ -8,7 +8,7 @@ from flight_controller import FlightComputer, RocketParams
 
 # 1. INITIALISATION
 config = RocketParams()
-computer = FlightComputer()  # Notre cerveau importé
+computer = FlightComputer()
 
 p.connect(p.GUI)
 p.setAdditionalSearchPath(pybullet_data.getDataPath())
@@ -43,7 +43,6 @@ for step in range(100000):
     euler = p.getEulerFromQuaternion(orn)
 
     # --- B. CERVEAU (DATA -> COMMANDES) ---
-    # On demande au contrôleur quoi faire
     thrust, torques = computer.update(pos, lin_vel, euler, ang_vel, dt)
 
     # --- C. ACTIONNEURS (COMMANDES -> PYBULLET) ---
